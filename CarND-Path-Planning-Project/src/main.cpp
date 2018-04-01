@@ -190,7 +190,7 @@ class TrafficCost
 				return distance(costs.begin(), min_element(costs.begin(), costs.end()));
 			}
 
-			double getMinAllowedVelocity(){
+			double getMaxVelocity(){
 				return min_velocity - 0.5;
 			}
 
@@ -338,19 +338,17 @@ int main() {
 						int previous_lane = lane;
 						lane = cost.getLane();
 
-						if (previous_lane != lane)
-						{
+						if (previous_lane != lane) {
 							cout << "Changed lane " << previous_lane << "->" << lane << endl;
 						}
 
 						cout << "lane " << lane << endl;
 
 						//TODO: introduce const velocity
-					  if (ref_vel > cost.getMinAllowedVelocity()) {
+					  if (ref_vel > cost.getMaxVelocity()) {
 							ref_vel -= .224;//cost.getVelUpdate(lane); // ~5m/s
 						}
-						else
-						{
+						else {
 							ref_vel += .224;
 						}
 
@@ -377,8 +375,7 @@ int main() {
 						
 
 						// if previous size is almost empty, use the car as starting reference
-						if (prev_size < 2)
-						{
+						if (prev_size < 2) {
 							// use two points that make the path tangent to the car
 							double prev_car_x = car_x - cos(car_yaw);
 							double prev_car_y = car_y - sin(car_yaw);
@@ -389,8 +386,7 @@ int main() {
 							ptsy.push_back(prev_car_y);
 							ptsy.push_back(car_y);
 						}
-						else
-						{
+						else	{
 							ref_x = previous_path_x[prev_size - 1];
 							ref_y = previous_path_y[prev_size - 1];
 
@@ -423,8 +419,7 @@ int main() {
 						// transformation to local cars coordinates
 						// we make sure that the car or last point of the previous path is at (0,0)
 						// and its angles at 0 degrees
-						for (int i = 0; i < ptsx.size(); i++)
-						{
+						for (int i = 0; i < ptsx.size(); i++)	{
 							// shift car reference angle to 0
 							double shift_x = ptsx[i] - ref_x;
 							double shift_y = ptsy[i] - ref_y;
@@ -445,8 +440,7 @@ int main() {
 						// start with all of the previous path points from last time
 						// instead of recreating the path from scratch every single time,
 						// we are working with what you still have left from last time
-						for (int i = 0; i < previous_path_x.size(); i++)
-						{
+						for (int i = 0; i < previous_path_x.size(); i++) {
 								next_x_vals.push_back(previous_path_x[i]);
 								next_y_vals.push_back(previous_path_y[i]);
 						}
@@ -482,55 +476,6 @@ int main() {
 						}
 
 						// use the previous path's endpoint as starting reference
-
-						/*
-						double dist_inc = 0.4;
-						for(int i = 0; i < 1000; i++)
-						{
-							    double next_s = car_s + (i+1) * dist_inc;
-									double next_d = 6;
-									vector<double> xy = getXY(next_s, next_d, map_waypoints_s, map_waypoints_x, map_waypoints_y); 
-									next_x_vals.push_back(xy[0]);
-									next_y_vals.push_back(xy[1]);
-						}*/
-            /*
-						double pos_x;
-						double pos_y;
-						double angle;
-						int path_size = previous_path_x.size();
-
-						for(int i = 0; i < path_size; i++)
-						{
-								next_x_vals.push_back(previous_path_x[i]);
-								next_y_vals.push_back(previous_path_y[i]);
-						}
-
-						if(path_size == 0)
-						{
-								pos_x = car_x;
-								pos_y = car_y;
-								angle = deg2rad(car_yaw);
-						}
-						else
-						{
-								pos_x = previous_path_x[path_size-1];
-								pos_y = previous_path_y[path_size-1];
-
-								double pos_x2 = previous_path_x[path_size-2];
-								double pos_y2 = previous_path_y[path_size-2];
-								angle = atan2(pos_y-pos_y2,pos_x-pos_x2);
-						}
-
-						double dist_inc = 0.5;
-						for(int i = 0; i < 50-path_size; i++)
-						{    
-								next_x_vals.push_back(pos_x+(dist_inc)*cos(angle+(i+1)*(pi()/100)));
-								next_y_vals.push_back(pos_y+(dist_inc)*sin(angle+(i+1)*(pi()/100)));
-								pos_x += (dist_inc)*cos(angle+(i+1)*(pi()/100));
-								pos_y += (dist_inc)*sin(angle+(i+1)*(pi()/100));
-						}
-						*/
-          	// END
 						msgJson["next_x"] = next_x_vals;
           	msgJson["next_y"] = next_y_vals;
 
