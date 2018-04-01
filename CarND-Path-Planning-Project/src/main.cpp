@@ -164,6 +164,68 @@ vector<double> getXY(double s, double d, const vector<double> &maps_s, const vec
 
 }
 
+class TrafficCost
+{
+    private:
+		  vector<double> costs;
+			vector<double> vel_update;
+			double min_velocity;
+		public:
+		  TrafficCost(int current_lane, double speed_limit):costs(3), min_velocity(speed_limit) {
+				costs[0] = .5;
+				costs[1] = .5;
+				costs[2] = .5;
+				costs[current_lane] = 0;
+				//TODO: code that in more elegant way
+				if (current_lane == 0) {
+					costs[2] = 50;
+				}
+				if (current_lane == 2) {
+					costs[0] = 50;
+				}
+
+			} // starting from middle lane
+
+			int getLane() {
+				return distance(costs.begin(), min_element(costs.begin(), costs.end()));
+			}
+
+			double getMinAllowedVelocity(){
+				return min_velocity - 0.5;
+			}
+
+			void updateCost(double car_pos, int car_lane, double car_vel,
+											double car_detected_pos, int car_detected_lane, double car_detected_vel,
+											double gap_front, double gap_rear, double max_speed, double cost) {
+				// if highway is empty and you reach your max speed, keep your velocity
+
+				if((car_detected_pos > car_pos) && ((car_detected_pos - car_pos) < gap_front)) {
+
+						if (car_lane == car_detected_lane && car_detected_vel < min_velocity){
+							//cout << "car_detected_vel"
+				  		min_velocity = car_detected_vel;
+						}
+
+						cout << "car_detected_lane " << car_detected_lane;
+						cout << "Speed: " << car_vel << ";" << car_detected_vel << ';' << car_vel - car_detected_vel << endl;
+						costs[car_detected_lane] += cost;
+						costs[car_detected_lane] += (car_vel - car_detected_vel) / 100;
+				}
+				// TODO: change 10 to some more abstract value
+				if((((car_detected_pos < car_pos) && ((car_pos - car_detected_pos) < gap_rear)) ||
+				    ((car_detected_pos > car_pos) && ((car_detected_pos - car_pos) < 10))) &&
+					  (car_lane != car_detected_lane)) {
+						cout << "car_detected_lane " << car_detected_lane;
+						cout << "Speed: " << car_vel << ";" << car_detected_vel << ';' << car_vel - car_detected_vel << endl;
+						costs[car_detected_lane] += 100;
+						//costs[car_detected_lane] += (car_vel - car_detected_vel) / 100;
+				}
+
+				cout <<  costs[0] << " " << costs[1] << " " << costs[2] << endl;
+				//cout << vel_update[0] << " " << vel_update[1] << " " << vel_update[2] << endl;
+			}
+};
+
 int main() {
   uWS::Hub h;
 
@@ -204,10 +266,11 @@ int main() {
   int lane = 1;
 
   // reference velocity to target 
-	double ref_vel = 49.5; //mph
+	double ref_vel = 0; //mph
+  double ref_vel_update = 0; //mph
 
-  h.onMessage([&ref_vel, &map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy, &lane](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
-                     uWS::OpCode opCode) {
+  h.onMessage([&ref_vel_update, &ref_vel, &map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy, &lane]
+							(uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
     // The 2 signifies a websocket event
@@ -246,6 +309,51 @@ int main() {
 						// previous list of points - the last path that the car was following before 
 						// this particuar run through of calculating more points
 						int prev_size = previous_path_x.size();
+
+						// sensor fusion to prevent collition
+						if (prev_size > 0) {
+              car_s = end_path_s;
+            }
+
+						bool too_close = false;
+
+						TrafficCost cost(car_d/4, 50);
+						// find ref_v to use
+						for ( int i = 0; i < sensor_fusion.size(); i++ ) {
+                // car is in my lane
+								float check_car_d = sensor_fusion[i][6];
+								// car could take a change that's why we need to check the whole lane
+								// and not just middle of lane
+								double vx = sensor_fusion[i][3];
+								double vy = sensor_fusion[i][4];
+								double check_speed = sqrt(vx * vx + vy * vy);
+								double check_car_s = sensor_fusion[i][5];
+
+								check_car_s += ((double)prev_size * .02 * check_speed);
+								cost.updateCost(car_s, car_d/4, ref_vel, check_car_s, check_car_d/4, check_speed, 30 /*gap in meters*/, 15, 50, 1);
+						}
+            cout << "sensor_fusion " << sensor_fusion.size() << endl;
+						cout << "car_lane " << car_d/4 << endl;
+
+						int previous_lane = lane;
+						lane = cost.getLane();
+
+						if (previous_lane != lane)
+						{
+							cout << "Changed lane " << previous_lane << "->" << lane << endl;
+						}
+
+						cout << "lane " << lane << endl;
+
+						//TODO: introduce const velocity
+					  if (ref_vel > cost.getMinAllowedVelocity()) {
+							ref_vel -= .224;//cost.getVelUpdate(lane); // ~5m/s
+						}
+						else
+						{
+							ref_vel += .224;
+						}
+
 
           	json msgJson;
 
