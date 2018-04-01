@@ -170,8 +170,9 @@ class TrafficCost
 		  vector<double> costs;
 			vector<double> vel_update;
 			double min_velocity;
+			double speed_limit;
 		public:
-		  TrafficCost(int current_lane, double speed_limit):costs(3), min_velocity(speed_limit) {
+		  TrafficCost(int current_lane, double speed_limit):costs(3), min_velocity(speed_limit), speed_limit(speed_limit) {
 				costs[0] = .5;
 				costs[1] = .5;
 				costs[2] = .5;
@@ -196,18 +197,21 @@ class TrafficCost
 
 			void updateCost(double car_pos, int car_lane, double car_vel,
 											double car_detected_pos, int car_detected_lane, double car_detected_vel,
-											double gap_front, double gap_rear, double max_speed, double cost) {
+											double gap_front, double gap_rear, double max_speed, double cost, bool cost_ready) {
 				// if highway is empty and you reach your max speed, keep your velocity
 
 				if((car_detected_pos > car_pos) && ((car_detected_pos - car_pos) < gap_front)) {
 
 						if (car_lane == car_detected_lane && car_detected_vel < min_velocity){
+							// TODO if change line then update velocity accordingly
 							//cout << "car_detected_vel"
 				  		min_velocity = car_detected_vel;
+							cout << "decrease min_velocity " << min_velocity << endl;
 						}
 
-						cout << "car_detected_lane " << car_detected_lane;
+						cout << "car_detected_lane " << car_detected_lane << endl;
 						cout << "Speed: " << car_vel << ";" << car_detected_vel << ';' << car_vel - car_detected_vel << endl;
+						// TODO: not just cost but take into account distance
 						costs[car_detected_lane] += cost;
 						costs[car_detected_lane] += (car_vel - car_detected_vel) / 100;
 				}
@@ -219,6 +223,12 @@ class TrafficCost
 						cout << "Speed: " << car_vel << ";" << car_detected_vel << ';' << car_vel - car_detected_vel << endl;
 						costs[car_detected_lane] += 100;
 						//costs[car_detected_lane] += (car_vel - car_detected_vel) / 100;
+				}
+
+				// if we expecting to change lane then we have to reset max velocity
+				if (car_lane != getLane() && cost_ready) {
+					min_velocity = speed_limit;
+					cout << "update min_velocity " << min_velocity << endl;
 				}
 
 				cout <<  costs[0] << " " << costs[1] << " " << costs[2] << endl;
@@ -309,7 +319,7 @@ int main() {
 						// previous list of points - the last path that the car was following before 
 						// this particuar run through of calculating more points
 						int prev_size = previous_path_x.size();
-
+						cout << "PREV_SIZE" << prev_size << endl;
 						// sensor fusion to prevent collition
 						if (prev_size > 0) {
               car_s = end_path_s;
@@ -317,7 +327,7 @@ int main() {
 
 						bool too_close = false;
 
-						TrafficCost cost(car_d/4, 50);
+						TrafficCost cost(lane, 50);
 						// find ref_v to use
 						for ( int i = 0; i < sensor_fusion.size(); i++ ) {
                 // car is in my lane
@@ -330,9 +340,9 @@ int main() {
 								double check_car_s = sensor_fusion[i][5];
 
 								check_car_s += ((double)prev_size * .02 * check_speed);
-								cost.updateCost(car_s, car_d/4, ref_vel, check_car_s, check_car_d/4, check_speed, 30 /*gap in meters*/, 15, 50, 1);
+								cost.updateCost(car_s, lane, ref_vel, check_car_s, check_car_d/4, check_speed, 30 /*gap in meters*/, 10, 50, 1, (i == sensor_fusion.size()-1));
 						}
-            cout << "sensor_fusion " << sensor_fusion.size() << endl;
+            //cout << "sensor_fusion " << sensor_fusion.size() << endl;
 						cout << "car_lane " << car_d/4 << endl;
 
 						int previous_lane = lane;
@@ -345,13 +355,16 @@ int main() {
 						cout << "lane " << lane << endl;
 
 						//TODO: introduce const velocity
-					  if (ref_vel > cost.getMaxVelocity()) {
-							ref_vel -= .224;//cost.getVelUpdate(lane); // ~5m/s
+					  if (ref_vel < cost.getMaxVelocity()) {
+							ref_vel += .224; // ~5m/s
 						}
-						else {
-							ref_vel += .224;
+						else if (abs(ref_vel - cost.getMaxVelocity()) < .5)
+						{
+							ref_vel += 0; 
 						}
-
+						else{
+							ref_vel -= .224;
+						}
 
           	json msgJson;
 
