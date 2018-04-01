@@ -354,16 +354,14 @@ int main() {
 
 						cout << "lane " << lane << endl;
 
-						//TODO: introduce const velocity
-					  if (ref_vel < cost.getMaxVelocity()) {
+					  if (cost.getMaxVelocity() - ref_vel > 0) {
 							ref_vel += .224; // ~5m/s
 						}
-						else if (abs(ref_vel - cost.getMaxVelocity()) < .5)
-						{
-							ref_vel += 0; 
-						}
-						else{
-							ref_vel -= .224;
+						else if (cost.getMaxVelocity() - ref_vel > .5) {
+							  ref_vel += 0; 
+					 	}
+						else {
+							  ref_vel -= .224;
 						}
 
           	json msgJson;
