@@ -89,6 +89,29 @@ The In order to compile the project use ./install-mac.sh in main directory. It w
 <img src="data/Screen Shot 2018-04-03 at 1.01.30 AM.png" width="480" alt="Combined Image" />
 
 3. The car drives according to the speed limit.
+The code is using traffic cost class (lines main.cpp:171-269) as the cost function for lane changes.
+The constructor of the class gets 50 mph initially as speed limit. 
+```
+TrafficCost cost(lane, 50);
+```
+The speed limit then (inside traffic cost class) may change if we have slower car ahead of us
+and we can't change lane (see line main.cpp:221)
+
+Such computed max velocity is then used so that the car would not pass this speed (see main.cpp:410-421)
+```
+double max_current_vel = cost.getMaxVelocity();
+if (max_current_vel - ref_vel > 0) {
+   if (max_current_vel - ref_vel < .5) {
+      ref_vel = max_current_vel;
+   }
+   else {
+      ref_vel += .224; // ~5m/s
+   }
+}
+else if (max_current_vel - ref_vel < 0) {
+   ref_vel -= .224;
+}
+```
 4. Max Acceleration and Jerk are not Exceeded.
 5. Car does not have collisions.
 6. The car stays in its lane, except for the time between changing lanes.
