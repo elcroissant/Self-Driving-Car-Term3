@@ -151,7 +151,45 @@ if (cost_ready == true)
 etc
 
 6. The car stays in its lane, except for the time between changing lanes.
+The car initially starts from lane 1
+```
+main.cpp:181-187
+// init cost with low penalty
+      costs[0] = low_penalty;
+      costs[1] = low_penalty;
+      costs[2] = low_penalty;
+// zero lane occupied by the car so that the car
+// won't change one lane to another with no reason
+      costs[current_lane] = 0;
+}
+```
+Then during drive updateCost main.cpp:211-268 is used to verify if it is good to change lane or not.
+
+Additionaly if the change lane is in progress the car can't change to another line in the middle
+
+```
+main.cpp:249-257
+if (change_in_progress)
+{
+   // if we decided to change lane to anodher one,
+   // when still changing from previous lane
+   costs[0] = high_penalty;
+   costs[1] = high_penalty;
+   costs[2] = high_penalty;
+   costs[car_lane] = 0;
+}
+```
+
 7. The car is able to change lanes
+The car is able to change lane when the cost function says it's better to do so.
+```
+main.cpp:200-203
+int getLane() {
+   // get index for the lowest cost
+   return distance(costs.begin(), min_element(costs.begin(), costs.end()));
+}
+```
+
 8. There is a reflection on how to generate paths.
 
 
