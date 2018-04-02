@@ -97,9 +97,17 @@ TrafficCost cost(lane, 50);
 The speed limit then (inside traffic cost class) may change if we have slower car ahead of us
 and we can't change lane (see line main.cpp:221)
 
-Such computed max velocity is then used so that the car would not pass this speed (see main.cpp:410-421)
+After processing all records of sensor fusion table we retrieve that speed limit from 
+the traffic cost instance just before we are deciding whether to accelerate or slow down
 ```
+main.cpp:410
 double max_current_vel = cost.getMaxVelocity();
+```
+4. Max Acceleration and Jerk are not Exceeded.
+
+The potential acceleration is controled in the code as follows:
+```
+main.cpp:411-421
 if (max_current_vel - ref_vel > 0) {
    if (max_current_vel - ref_vel < .5) {
       ref_vel = max_current_vel;
@@ -112,8 +120,36 @@ else if (max_current_vel - ref_vel < 0) {
    ref_vel -= .224;
 }
 ```
-4. Max Acceleration and Jerk are not Exceeded.
 5. Car does not have collisions.
+In order to avoid collisions program implements several measures, such as:
+```
+main.cpp:219-221
+if (car_lane == car_detected_lane && car_detected_vel < max_velocity){
+   // decrease max allowed velocity if another car is ahead of us
+   max_velocity = car_detected_vel;
+```
+
+```
+main.cpp:241-247
+if((((car_detected_pos < car_pos) && ((car_pos - car_detected_pos) < gap_rear)) ||
+    ((car_detected_pos > car_pos) && ((car_detected_pos - car_pos) < gap_front_next))) &&
+     (car_lane != car_detected_lane)) {
+      // don't change line when car is on neighbor lane
+      // and so so far behind us or next to us
+      costs[car_detected_lane] += high_penalty;
+}
+```
+```
+main.cpp:259-264
+if (cost_ready == true)
+{
+   cout <<  costs[0] << " " << costs[1] << " " << costs[2] << endl;
+  // if we are changing lane then we don't have to slow the car down
+   if (car_lane != getLane()) {
+      max_velocity = speed_limit;
+```
+etc
+
 6. The car stays in its lane, except for the time between changing lanes.
 7. The car is able to change lanes
 8. There is a reflection on how to generate paths.
