@@ -60,6 +60,32 @@ the path has processed since last time.
 
 2. There will be some latency between the simulator running and the path planner returning a path, with optimized code usually its not very long maybe just 1-3 time steps. During this delay the simulator will continue using points that it was last given, because of this its a good idea to store the last points you have used so you can have a smooth transition. previous_path_x, and previous_path_y can be helpful for this transition since they show the last points given to the simulator controller with the processed points already removed. You would either return a path that extends this previous path or make sure to create a new path that has a smooth transition with this last path.
 
+## Rubric Points
+
+1. The code compiles correctly.
+In order to compile the project use ./install-mac.sh in main directory. It will create build directory where you can find path_planning binary.
+-- The C compiler identification is AppleClang 9.0.0.9000039
+-- The CXX compiler identification is AppleClang 9.0.0.9000039
+-- Check for working C compiler: /Library/Developer/CommandLineTools/usr/bin/cc
+-- Check for working C compiler: /Library/Developer/CommandLineTools/usr/bin/cc -- works
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Check for working CXX compiler: /Library/Developer/CommandLineTools/usr/bin/c++
+-- Check for working CXX compiler: /Library/Developer/CommandLineTools/usr/bin/c++ -- works
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Configuring done
+-- Generating done
+[ 50%] Building CXX object CMakeFiles/path_planning.dir/src/main.cpp.o
+[100%] Linking CXX executable path_planning
+[100%] Built target path_planning
+
+
+
 ## Tips
 
 A really helpful resource for doing this project and creating smooth trajectories was using http://kluge.in-chemnitz.de/opensource/spline/, the spline function is in a single hearder file is really easy to use.
