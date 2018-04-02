@@ -86,6 +86,8 @@ The In order to compile the project use ./install-mac.sh in main directory. It w
 [100%] Built target path_planning
 ```
 2. The car is able to drive at least 4.32 miles without incident..
+<img src="data/Screen Shot 2018-04-03 at 1.01.30 AM.png" width="480" alt="Combined Image" />
+
 3. The car drives according to the speed limit.
 4. Max Acceleration and Jerk are not Exceeded.
 5. Car does not have collisions.
