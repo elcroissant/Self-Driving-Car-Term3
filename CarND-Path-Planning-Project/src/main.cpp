@@ -210,39 +210,61 @@ class TrafficCost
 
 			void updateCost(double car_pos, int car_lane, double car_vel,
 											double car_detected_pos, int car_detected_lane, double car_detected_vel,
-											double gap_front, double gap_rear, double gap_front_next, double max_speed, double cost, bool cost_ready) {
-				if((car_detected_pos > car_pos) && ((car_detected_pos - car_pos) < gap_front)) {
+											double gap_front, double gap_rear, double gap_front_next, double max_speed, double cost,
+											bool cost_ready, bool change_in_progress) {
+        if((car_detected_pos > car_pos) && ((car_detected_pos - car_pos) < 2 * gap_front)) {
 
-						if (car_lane == car_detected_lane && car_detected_vel < max_velocity){
-							// decrease max allowed velocity if another car is ahead of us
-							max_velocity = car_detected_vel;
-							// cout << "decrease max_velocity " << max_velocity << endl;
+						if((car_detected_pos > car_pos) && ((car_detected_pos - car_pos) < gap_front)) {
+
+							if (car_lane == car_detected_lane && car_detected_vel < max_velocity){
+								// decrease max allowed velocity if another car is ahead of us
+								max_velocity = car_detected_vel;
+						    // add typical cost for single car
+								costs[car_detected_lane] += cost;
+								// add penalty proportionally to the difference of velocities of
+								// our car and car ahead
+								costs[car_detected_lane] += (car_vel - car_detected_vel) / 100;
+							}
 						}
-
-						//cout << "car_detected_lane " << car_detected_lane << endl;
-						//cout << "Speed: " << car_vel << ";" << car_detected_vel << ';' << car_vel - car_detected_vel << endl;
-						costs[car_detected_lane] += cost;
-						// increase penalty proportionally to the difference of
-						// our car and car ahead of us, but not more than 1 car
-						costs[car_detected_lane] += (car_vel - car_detected_vel) / 100;
+						if (car_lane != car_detected_lane){
+							// add typical cost for single car
+						  costs[car_detected_lane] += cost;
+							// add penalty proportionally to the difference of velocities of
+							// our car and car ahead 
+						  costs[car_detected_lane] += (car_vel - car_detected_vel) / 100;
+							// add penalty in reverse proportion to normalized distance between our car and car ahead
+							costs[car_detected_lane] += 1 - (car_detected_pos - car_pos) / (2 * gap_front);
+							assert((car_detected_pos - car_pos) / (2 * gap_front) < 1);
+						}
 				}
 
 				if((((car_detected_pos < car_pos) && ((car_pos - car_detected_pos) < gap_rear)) ||
 				    ((car_detected_pos > car_pos) && ((car_detected_pos - car_pos) < gap_front_next))) &&
 					  (car_lane != car_detected_lane)) {
-						//cout << "car_detected_lane " << car_detected_lane;
-						//cout << "Speed: " << car_vel << ";" << car_detected_vel << ';' << car_vel - car_detected_vel << endl;
 						// don't change line when car is on neighbor lane
 						// and so so far behind us or next to us
 						costs[car_detected_lane] += high_penalty;
 				}
 
-				// if we are changing lane then we don't have to slow the car down
-				if (car_lane != getLane() && cost_ready) {
-					max_velocity = speed_limit;
-					//cout << "update max_velocity " << max_velocity << endl;
+				if (change_in_progress)
+				{
+					// if we decided to change lane to anogher one,
+					// when still changing from previous lane
+					costs[0] = high_penalty;
+					costs[1] = high_penalty;
+					costs[2] = high_penalty;
+					costs[car_lane] = 0;
 				}
-				cout <<  costs[0] << " " << costs[1] << " " << costs[2] << endl;
+
+				if (cost_ready == true)
+				{
+					cout <<  costs[0] << " " << costs[1] << " " << costs[2] << endl;
+				  // if we are changing lane then we don't have to slow the car down
+					if (car_lane != getLane()) {
+						max_velocity = speed_limit;
+						//cout << "update max_velocity " << max_velocity << endl;
+					}
+				}
 			}
 };
 
@@ -359,7 +381,7 @@ int main() {
 									30,
 									// distance in meters for cars behind considered as in
 									// danger zone
-									10,
+									11,
 									// distance in meters for cars ahead considered as
 									// being next to our car and in danger zone
 									10,
@@ -367,7 +389,10 @@ int main() {
 									50,
 									medium_penalty,
 									// last car, whole costs ready
-									(i == sensor_fusion.size()-1));
+									(i == sensor_fusion.size()-1),
+									// this is to check if exact postion of our car
+									// is more than 1 lane width from the destination lane
+									(abs(car_d/4 - lane)) > 1);
 						}
             //cout << "sensor_fusion " << sensor_fusion.size() << endl;
 						cout << "car_lane " << car_d/4 << endl;
@@ -381,16 +406,19 @@ int main() {
 
 						cout << "lane " << lane << endl;
 
-				// if highway is empty and you reach your max speed, keep your velocity
-					  if (cost.getMaxVelocity() - ref_vel > 0) {
-							ref_vel += .224; // ~5m/s
+				    // if highway is empty and you reach your max speed, keep your velocity
+					  double max_current_vel = cost.getMaxVelocity();
+						if (max_current_vel - ref_vel > 0) {
+							if (max_current_vel - ref_vel < .5) {
+								ref_vel = max_current_vel;
+							}
+							else {
+								ref_vel += .224; // ~5m/s
+							}
 						}
-						else if (cost.getMaxVelocity() - ref_vel > .5) {
-							  ref_vel += 0; 
+						else if (max_current_vel - ref_vel < 0) {
+							ref_vel -= .224;
 					 	}
-						else {
-							  ref_vel -= .224;
-						}
 
           	json msgJson;
 
