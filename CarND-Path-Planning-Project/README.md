@@ -314,7 +314,12 @@ else if (max_current_vel - ref_vel < 0) {
 }
 ```
 
-Phase no 3 is about 
+Phase no 3 is about trajectory. main.cpp:434-543. It uses calculated speed and lane from previous phase, coordinates of the car and previous points to calculate trajectory. 
+
+We first creating 5 anchor points and later we will interpolate these points with the spline and fill it in with more points that control spline. Our first tow anchor poinst are poinst where the car is or previous path's end points. Three left anchor points are three evenly 30m spaced poinst ahead of starting reference main.cpp:473-475. 
+
+Then, we transform those points to local car's coordinates by shifting and rotating and then create a spline. Then we calculate how to break up spline points so that we travel at desired reference velocity main.cpp:516-519 and fill up the rest of our planner path and finally we rotate all points back to global coordinates
+
 
 ## Tips
 
