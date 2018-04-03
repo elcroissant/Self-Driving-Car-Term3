@@ -287,6 +287,35 @@ if (cost_ready == true)
 }
 ```
 
+Phase no 2 is about behavior. After predition is finished we know whether we are going to change lane or not:
+
+```
+main.cpp:401
+lane = cost.getLane();
+```
+
+And then we are deciding whether we should accelerate or slow down or keep max_current velocity
+If we have reached max_current velocity then we press break and slow down by ~5m/s, otherwise we 
+increase speed by ~5m/s unless we are very close to our max_current velocity and in that case we are 
+trying to keep velocity of the car ahead or a bit below speed limit.
+```
+main.cpp:410-421
+double max_current_vel = cost.getMaxVelocity();
+if (max_current_vel - ref_vel > 0) {
+   if (max_current_vel - ref_vel < .5) {
+      ref_vel = max_current_vel;
+   }
+   else {
+      ref_vel += .224; // ~5m/s
+   }
+}
+else if (max_current_vel - ref_vel < 0) {
+   ref_vel -= .224;
+}
+```
+
+Phase no 3 is about 
+
 ## Tips
 
 A really helpful resource for doing this project and creating smooth trajectories was using http://kluge.in-chemnitz.de/opensource/spline/, the spline function is in a single hearder file is really easy to use.
