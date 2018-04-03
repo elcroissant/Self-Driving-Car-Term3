@@ -190,8 +190,102 @@ int getLane() {
 }
 ```
 
-8. There is a reflection on how to generate paths.
+8. Reflection on how to generate paths.
 
+The path planning algorithm begins when we get previous list of points:
+```
+main.cpp:252-254
+// previous list of points - the last path that the car was following before 
+// this particuar run through of calculating more points
+int prev_size = previous_path_x.size();
+```
+Phase no 1 is about prediction and it is when the car is processing sensor fusion data
+to understand the envirnoment and decide whether it is safier to slow down and stay on 
+the current lane or change it. The code is using TrafficCost class to produce 
+costs function and based on that the car is making appropriate maneuver. 
+
+If the detected car is ahead us within 60m and on different lanes we are adding typical cost
+for single car (here is just 1). Also we are adding penalty proportionally to the difference of 
+velocities of our car and car ahead. To increase chance to chane to less occupied lane we also 
+add penalty which is reverse proportionally to normalized distance between our car and car ahead.
+
+If the detected car is ahead us 30m and on our current lane and our max allowed velocity is 
+bigger than car detected velocity then we are deacreasing our velocity so that we won't crash
+with the car ahead. Also we are adding cost for that car equal to 1 and increase it by adding 
+penalty proportionally to the difference of velocities of our car and car ahead.
+```
+main.cpp:215-239
+if((car_detected_pos > car_pos) && ((car_detected_pos - car_pos) < 2 * gap_front)) {
+
+         if((car_detected_pos > car_pos) && ((car_detected_pos - car_pos) < gap_front)) {
+
+            if (car_lane == car_detected_lane && car_detected_vel < max_velocity){
+               // decrease max allowed velocity if another car is ahead of us
+               max_velocity = car_detected_vel;
+             // add typical cost for single car
+               costs[car_detected_lane] += cost;
+               // add penalty proportionally to the difference of velocities of
+               // our car and car ahead
+               costs[car_detected_lane] += (car_vel - car_detected_vel) / 100;
+            }
+         }
+         if (car_lane != car_detected_lane){
+            // add typical cost for single car
+           costs[car_detected_lane] += cost;
+            // add penalty proportionally to the difference of velocities of
+            // our car and car ahead 
+           costs[car_detected_lane] += (car_vel - car_detected_vel) / 100;
+            // add penalty in reverse proportion to normalized distance between our car and car ahead
+            costs[car_detected_lane] += 1 - (car_detected_pos - car_pos) / (2 * gap_front);
+            assert((car_detected_pos - car_pos) / (2 * gap_front) < 1);
+         }
+   }
+```
+
+If the detected car is on neighbor lane and within 11m behind or right next to us (10m ahead) then 
+we are adding panalty for that lane.
+```
+main.cpp:241-247
+if((((car_detected_pos < car_pos) && ((car_pos - car_detected_pos) < gap_rear)) ||
+    ((car_detected_pos > car_pos) && ((car_detected_pos - car_pos) < gap_front_next))) &&
+     (car_lane != car_detected_lane)) {
+      // don't change line when car is on neighbor lane
+      // and so so far behind us or next to us
+      costs[car_detected_lane] += high_penalty;
+}
+```
+
+If we decided to change the lane but we are just in the middle of previous change 
+we are blocking that maneuver. 
+
+```
+main.cpp:249-257
+if (change_in_progress)
+{
+   // if we decided to change lane to anogher one,
+   // when still changing from previous lane
+   costs[0] = high_penalty;
+   costs[1] = high_penalty;
+   costs[2] = high_penalty;
+   costs[car_lane] = 0;
+}
+```
+
+And finally when we have all sensor funsion process and we know we will change the lane 
+then we don't need to slow down
+
+```
+main.cpp:259-267
+if (cost_ready == true)
+{
+   cout <<  costs[0] << " " << costs[1] << " " << costs[2] << endl;
+  // if we are changing lane then we don't have to slow the car down
+   if (car_lane != getLane()) {
+      max_velocity = speed_limit;
+      //cout << "update max_velocity " << max_velocity << endl;
+   }
+}
+```
 
 ## Tips
 
