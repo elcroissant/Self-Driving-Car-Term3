@@ -32,8 +32,18 @@ def load_vgg(sess, vgg_path):
     vgg_layer3_out_tensor_name = 'layer3_out:0'
     vgg_layer4_out_tensor_name = 'layer4_out:0'
     vgg_layer7_out_tensor_name = 'layer7_out:0'
+    # load the graph from file
+    tf.saved_model.loader.load(sess, [vgg_tag], vgg_path)
+    # grab the graph
+    graph = tf.get_default_graph()
+    # grab each layer by its name
+    w1 = graph.get_tensor_by_name(vgg_input_tensor_name)
+    keep = graph.get_tensor_by_name(vgg_keep_prob_tensor_name)
+    w3 = graph.get_tensor_by_name(vgg_layer3_out_tensor_name)
+    w4 = graph.get_tensor_by_name(vgg_layer4_out_tensor_name)
+    w7 = graph.get_tensor_by_name(vgg_layer7_out_tensor_name)
     
-    return None, None, None, None, None
+    return w1, keep, w3 , w4, w7
 tests.test_load_vgg(load_vgg, tf)
 
 
@@ -47,6 +57,14 @@ def layers(vgg_layer3_out, vgg_layer4_out, vgg_layer7_out, num_classes):
     :return: The Tensor for the last layer of output
     """
     # TODO: Implement function
+    # num_classes - binary classification, pixel road or not road
+    # we need regulizer, if we don't weights will become too large and it will be really prone to overfitting and producing garbage
+    conv_1x1 = tf.layers.conv2d(vgg_layer7_out, num_classes, 1, padding='same', 
+                                kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
+    output = tf.layers.conv2d_transpose(conv_1x1, num_classes, 4, 2, padding = 'same',
+                                        kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
+
+    tf.Print(output, [tf.shape(output)])
     return None
 tests.test_layers(layers)
 
@@ -61,6 +79,7 @@ def optimize(nn_last_layer, correct_label, learning_rate, num_classes):
     :return: Tuple of (logits, train_op, cross_entropy_loss)
     """
     # TODO: Implement function
+    logits = tf.reshape(input, (-1, num_classes))
     return None, None, None
 tests.test_optimize(optimize)
 
@@ -81,6 +100,10 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_l
     :param learning_rate: TF Placeholder for learning rate
     """
     # TODO: Implement function
+    for epoch in epochs:
+        for image, label in get_batches_fn(batch_size):
+            #Training 
+            pass
     pass
 tests.test_train_nn(train_nn)
 
@@ -104,12 +127,12 @@ def run():
         vgg_path = os.path.join(data_dir, 'vgg')
         # Create function to get batches
         get_batches_fn = helper.gen_batch_function(os.path.join(data_dir, 'data_road/training'), image_shape)
-
         # OPTIONAL: Augment Images for better results
         #  https://datascience.stackexchange.com/questions/5224/how-to-prepare-augment-images-for-neural-network
 
         # TODO: Build NN using load_vgg, layers, and optimize function
-
+        input_image, keep_prob, layer3_out, layer4_out, layer7_out = load_vgg(sess, vgg_path)
+        layer_output = layers(layer3_out, layers4_out, layers7_out, num_classes)
         # TODO: Train NN using the train_nn function
 
         # TODO: Save inference data using helper.save_inference_samples
