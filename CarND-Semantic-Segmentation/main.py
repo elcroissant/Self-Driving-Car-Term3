@@ -37,13 +37,13 @@ def load_vgg(sess, vgg_path):
     # grab the graph
     graph = tf.get_default_graph()
     # grab each layer by its name
-    w1 = graph.get_tensor_by_name(vgg_input_tensor_name)
-    keep = graph.get_tensor_by_name(vgg_keep_prob_tensor_name)
-    w3 = graph.get_tensor_by_name(vgg_layer3_out_tensor_name)
-    w4 = graph.get_tensor_by_name(vgg_layer4_out_tensor_name)
-    w7 = graph.get_tensor_by_name(vgg_layer7_out_tensor_name)
+    image_input = graph.get_tensor_by_name(vgg_input_tensor_name)
+    keep_prob = graph.get_tensor_by_name(vgg_keep_prob_tensor_name)
+    layer3_out = graph.get_tensor_by_name(vgg_layer3_out_tensor_name)
+    layer4_out = graph.get_tensor_by_name(vgg_layer4_out_tensor_name)
+    layer7_out = graph.get_tensor_by_name(vgg_layer7_out_tensor_name)
     
-    return w1, keep, w3 , w4, w7
+    return image_input, keep_prob, layer3_out, layer4_out, layer7_out
 tests.test_load_vgg(load_vgg, tf)
 
 
@@ -59,13 +59,33 @@ def layers(vgg_layer3_out, vgg_layer4_out, vgg_layer7_out, num_classes):
     # TODO: Implement function
     # num_classes - binary classification, pixel road or not road
     # we need regulizer, if we don't weights will become too large and it will be really prone to overfitting and producing garbage
-    conv_1x1 = tf.layers.conv2d(vgg_layer7_out, num_classes, 1, padding='same', 
-                                kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
-    output = tf.layers.conv2d_transpose(conv_1x1, num_classes, 4, 2, padding = 'same',
-                                        kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-3))
+    regulizer = tf.contrib.layers.l2_regularizer(1e-3)
+    initializer=tf.truncated_normal_initializer(0.0, stddev=0.01)
 
-    tf.Print(output, [tf.shape(output)])
-    return None
+    conv1x1_vgg_layer7_out = tf.layers.conv2d(vgg_layer7_out, num_classes, 1, padding='same',
+                                kernel_regularizer=regulizer, kernel_initializer=initializer)
+
+    up2x_conv1x1_vgg_layer7_out = tf.layers.conv2d_transpose(conv1x1_vgg_layer7_out, num_classes, 4, 2, padding='same',
+                                        kernel_regularizer=regulizer, kernel_initializer=initializer)
+
+    conv1x1_vgg_layer4_out = tf.layers.conv2d(vgg_layer4_out, num_classes, 1, padding='same',
+                                 kernel_regularizer=regulizer, kernel_initializer=initializer)
+
+    skip_layer4_to_layer7 = it.add(up2x_conv1x1_vgg_layer7_out, conv1x1_vgg_layer4_out)
+
+    up2x_skip_layer4_to_layer7 = tf.layers.conv2d_transpose(skip_layer4_to_layer7, num_classes, 4, 2, padding='same',
+                                        kernel_regularizer=regulizer, kernel_initializer=initializer)
+
+    conv1x1_vgg_layer3_out = tf.layers.conv2d(vgg_layer3_out, num_classes, 1, padding='same',
+                                 kernel_regularizer=regulizer, kernel_initializer=initializer)
+
+    skip_layer3 = tf.add(up2x_skip_layer4_to_layer7, conv1x1_vgg_layer3_out)
+
+    output = tf.layers.conv2d_transpose(skip_layer3, num_classes, 16, 8, padding='same',
+                                        kernel_regularizer=regulizer, kernel_initializer=initializer)
+
+    tf.Print(output, [tf.shape(output)[1:3]])
+    return output
 tests.test_layers(layers)
 
 
