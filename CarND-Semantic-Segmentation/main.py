@@ -24,7 +24,6 @@ def load_vgg(sess, vgg_path):
     :param vgg_path: Path to vgg folder, containing "variables/" and "saved_model.pb"
     :return: Tuple of Tensors from VGG model (image_input, keep_prob, layer3_out, layer4_out, layer7_out)
     """
-    # TODO: Implement function
     #   Use tf.saved_model.loader.load to load the model and weights
     vgg_tag = 'vgg16'
     vgg_input_tensor_name = 'image_input:0'
@@ -47,6 +46,19 @@ def load_vgg(sess, vgg_path):
 tests.test_load_vgg(load_vgg, tf)
 
 
+def conv1x1(layer, num_classes, regulizer, initializer):
+    return tf.layers.conv2d(layer, num_classes, 1, padding='same',
+                            kernel_regularizer=regulizer,
+                            kernel_initializer=initializer)
+
+def deconv(layer, num_classes, kernel_size, kernel_stride, regulizer, initializer):
+    return tf.layers.conv2d_transpose(layer, num_classes, kernel_size, kernel_stride, padding='same',
+                                     kernel_regularizer=regulizer,
+                                     kernel_initializer=initializer)
+
+def skip(layer_from, layer_to):
+    return tf.add(layer_from, layer_to)
+
 def layers(vgg_layer3_out, vgg_layer4_out, vgg_layer7_out, num_classes):
     """
     Create the layers for a fully convolutional network.  Build skip-layers using the vgg layers.
@@ -56,33 +68,22 @@ def layers(vgg_layer3_out, vgg_layer4_out, vgg_layer7_out, num_classes):
     :param num_classes: Number of classes to classify
     :return: The Tensor for the last layer of output
     """
-    # TODO: Implement function
     # num_classes - binary classification, pixel road or not road
     # we need regulizer, if we don't weights will become too large and it will be really prone to overfitting and producing garbage
     regulizer = tf.contrib.layers.l2_regularizer(1e-3)
     initializer=tf.truncated_normal_initializer(0.0, stddev=0.01)
-
-    conv1x1_vgg_layer7_out = tf.layers.conv2d(vgg_layer7_out, num_classes, 1, padding='same',
-                                kernel_regularizer=regulizer, kernel_initializer=initializer)
-
-    up2x_conv1x1_vgg_layer7_out = tf.layers.conv2d_transpose(conv1x1_vgg_layer7_out, num_classes, 4, 2, padding='same',
-                                        kernel_regularizer=regulizer, kernel_initializer=initializer)
-
-    conv1x1_vgg_layer4_out = tf.layers.conv2d(vgg_layer4_out, num_classes, 1, padding='same',
-                                 kernel_regularizer=regulizer, kernel_initializer=initializer)
-
-    skip_layer4_to_layer7 = tf.add(up2x_conv1x1_vgg_layer7_out, conv1x1_vgg_layer4_out)
-
-    up2x_skip_layer4_to_layer7 = tf.layers.conv2d_transpose(skip_layer4_to_layer7, num_classes, 4, 2, padding='same',
-                                        kernel_regularizer=regulizer, kernel_initializer=initializer)
-
-    conv1x1_vgg_layer3_out = tf.layers.conv2d(vgg_layer3_out, num_classes, 1, padding='same',
-                                 kernel_regularizer=regulizer, kernel_initializer=initializer)
-
-    skip_layer3 = tf.add(up2x_skip_layer4_to_layer7, conv1x1_vgg_layer3_out)
-
-    output = tf.layers.conv2d_transpose(skip_layer3, num_classes, 16, 8, padding='same',
-                                        kernel_regularizer=regulizer, kernel_initializer=initializer)
+    # apply conv1x1 to vgg fc7 to sustain spatial information
+    conv1x1_vgg_fc7 = conv1x1(vgg_layer7_out, num_classes, regulizer, initializer)
+    # FCN-8 block 1
+    up2x_conv7 = deconv(conv1x1_vgg_fc7, num_classes, 4, 2, regulizer, initializer)
+    pool4 = conv1x1(vgg_layer4_out, num_classes, regulizer, initializer)
+    up2x_conv7_pool4 = skip(up2x_conv7, pool4)
+    # FCN-8 block 2
+    up4x_conv7_2x_pool4 = deconv(up2x_conv7_pool4, num_classes, 4, 2, regulizer, initializer)
+    pool3 = conv1x1(vgg_layer3_out, num_classes, regulizer, initializer)
+    up4x_conv7_2x_pool4_pool3 = skip(up4x_conv7_2x_pool4, pool3)
+    # FCN-8 block 3
+    output = deconv(up4x_conv7_2x_pool4_pool3, num_classes, 16, 8, regulizer, initializer)
 
     tf.Print(output, [tf.shape(output)[1:3]])
     return output
@@ -135,8 +136,8 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_l
                     #, keep_prob: keep_prob, learning_rate: learning_rate})
             epoch_loss += c
             num_iter += 1
-            print('Epoch ', epoch, 'Iter', num_iter)
-        print('Epoch ', epoch, "/", epochs, "loss: ", epoch_loss)
+            print('Epoch ', epoch + 1, 'Iter', num_iter)
+        print('Epoch ', epoch + 1, "/", epochs, "loss: ", epoch_loss)
     pass
 tests.test_train_nn(train_nn)
 
