@@ -7,7 +7,7 @@ import project_tests as tests
 
 
 # Check TensorFlow Version
-assert LooseVersion(tf.__version__) >= LooseVersion('1.0'), 'Please use TensorFlow version 1.0 or newer.  You are using {}'.format(tf.__version__)
+assert LooseVersion(tf.__version__) >= LooseVersion('1.0'),'Please use TensorFlow version 1.0 or newer.  You are using {}'.format(tf.__version__)
 print('TensorFlow Version: {}'.format(tf.__version__))
 
 # Check for a GPU
@@ -51,8 +51,10 @@ def conv1x1(layer, num_classes, regulizer, initializer):
                             kernel_regularizer=regulizer,
                             kernel_initializer=initializer)
 
-def deconv(layer, num_classes, kernel_size, kernel_stride, regulizer, initializer):
-    return tf.layers.conv2d_transpose(layer, num_classes, kernel_size, kernel_stride, padding='same',
+def deconv(layer, num_classes, kernel_size, kernel_stride, regulizer,
+           initializer):
+    return tf.layers.conv2d_transpose(layer, num_classes, kernel_size,
+                                     kernel_stride, padding='same',
                                      kernel_regularizer=regulizer,
                                      kernel_initializer=initializer)
 
@@ -61,7 +63,8 @@ def skip(layer_from, layer_to):
 
 def layers(vgg_layer3_out, vgg_layer4_out, vgg_layer7_out, num_classes):
     """
-    Create the layers for a fully convolutional network.  Build skip-layers using the vgg layers.
+    Create the layers for a fully convolutional network.
+    Build skip-layers using the vgg layers.
     :param vgg_layer3_out: TF Tensor for VGG Layer 3 output
     :param vgg_layer4_out: TF Tensor for VGG Layer 4 output
     :param vgg_layer7_out: TF Tensor for VGG Layer 7 output
@@ -69,21 +72,26 @@ def layers(vgg_layer3_out, vgg_layer4_out, vgg_layer7_out, num_classes):
     :return: The Tensor for the last layer of output
     """
     # num_classes - binary classification, pixel road or not road
-    # we need regulizer, if we don't weights will become too large and it will be really prone to overfitting and producing garbage
+    # we need regulizer, if we don't weights will become too large and
+    # it will be really prone to overfitting and producing garbage
     regulizer = tf.contrib.layers.l2_regularizer(1e-3)
     initializer=tf.truncated_normal_initializer(0.0, stddev=0.01)
     # apply conv1x1 to vgg fc7 to sustain spatial information
-    conv1x1_vgg_fc7 = conv1x1(vgg_layer7_out, num_classes, regulizer, initializer)
+    conv1x1_vgg_fc7 = conv1x1(vgg_layer7_out, num_classes,
+                              regulizer, initializer)
     # FCN-8 block 1
-    up2x_conv7 = deconv(conv1x1_vgg_fc7, num_classes, 4, 2, regulizer, initializer)
+    up2x_conv7 = deconv(conv1x1_vgg_fc7, num_classes, 4, 2, regulizer,
+                       initializer)
     pool4 = conv1x1(vgg_layer4_out, num_classes, regulizer, initializer)
     up2x_conv7_pool4 = skip(up2x_conv7, pool4)
     # FCN-8 block 2
-    up4x_conv7_2x_pool4 = deconv(up2x_conv7_pool4, num_classes, 4, 2, regulizer, initializer)
+    up4x_conv7_2x_pool4 = deconv(up2x_conv7_pool4, num_classes, 4, 2,
+                                regulizer, initializer)
     pool3 = conv1x1(vgg_layer3_out, num_classes, regulizer, initializer)
     up4x_conv7_2x_pool4_pool3 = skip(up4x_conv7_2x_pool4, pool3)
     # FCN-8 block 3
-    output = deconv(up4x_conv7_2x_pool4_pool3, num_classes, 16, 8, regulizer, initializer)
+    output = deconv(up4x_conv7_2x_pool4_pool3, num_classes, 16, 8,
+                    regulizer, initializer)
 
     tf.Print(output, [tf.shape(output)[1:3]])
     return output
@@ -104,9 +112,11 @@ def optimize(nn_last_layer, correct_label, learning_rate, num_classes):
     # correct labels in the same form as output
     labels = tf.reshape(correct_label, (-1, num_classes))
     # compute distaance between output and grand truth
-    cross_entropy_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=labels))
-    # train AdamOptimizer with given learning rate base on distance computed in the previous step
-    # you can optionally specify learning_rate as parameter to AdamOptimizer, the defautl is 0.001
+    cross_entropy_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(
+                                      logits=logits, labels=labels))
+    # train AdamOptimizer with given learning rate base on distance
+    # computed in the previous step, you can optionally specify
+    # learning_rate as parameter to AdamOptimizer, the defautl is 0.001
     train_op = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cross_entropy_loss)
     return logits, train_op, cross_entropy_loss
 tests.test_optimize(optimize)
@@ -132,8 +142,9 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_l
         epoch_loss = 0
         num_iter = 0
         for image, label in get_batches_fn(batch_size):
-            _, c = sess.run([train_op, cross_entropy_loss], feed_dict={input_image: image, correct_label: label, learning_rate: 0.0001, keep_prob: 0.7})
-                    #, keep_prob: keep_prob, learning_rate: learning_rate})
+            _, c = sess.run([train_op, cross_entropy_loss],
+                            feed_dict={input_image: image, correct_label: label,
+                                       learning_rate: 0.0001, keep_prob: 0.7})
             epoch_loss += c
             num_iter += 1
             print('Epoch ', epoch + 1, 'Iter', num_iter)
@@ -161,22 +172,32 @@ def run():
     batch_size = 8
 
     with tf.Session() as sess:
-        #sess.run(tf.global_variables_initializer())
         # Path to vgg model
         vgg_path = os.path.join(data_dir, 'vgg')
         # Create function to get batches
-        get_batches_fn = helper.gen_batch_function(os.path.join(data_dir, 'data_road/training'), image_shape)
+        get_batches_fn = helper.gen_batch_function(
+                                  os.path.join(data_dir,
+                                               'data_road/training'),
+                                                image_shape)
         # OPTIONAL: Augment Images for better results
         #  https://datascience.stackexchange.com/questions/5224/how-to-prepare-augment-images-for-neural-network
 
         # Build NN using load_vgg, layers, and optimize function
         input_image, keep_prob, layer3_out, layer4_out, layer7_out = load_vgg(sess, vgg_path)
+
         nn_last_layer = layers(layer3_out, layer4_out, layer7_out, num_classes)
-        logits, train_op, cross_entropy_loss = optimize(nn_last_layer, correct_label, learning_rate, num_classes)
+
+        logits, train_op, cross_entropy_loss = optimize(nn_last_layer,
+                                                        correct_label,
+                                                        learning_rate,
+                                                        num_classes)
         # Train NN using the train_nn function
-        train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_loss, input_image, correct_label, keep_prob, learning_rate)
+        train_nn(sess, epochs, batch_size, get_batches_fn, train_op,
+                 cross_entropy_loss, input_image, correct_label,
+                keep_prob, learning_rate)
         # Save inference data using helper.save_inference_samples
-        helper.save_inference_samples(runs_dir, data_dir, sess, image_shape, logits, keep_prob, input_image)
+        helper.save_inference_samples(runs_dir, data_dir, sess, image_shape,
+                                      logits, keep_prob, input_image)
         # OPTIONAL: Apply the trained model to a video
 
 
