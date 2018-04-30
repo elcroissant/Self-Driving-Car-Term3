@@ -71,7 +71,7 @@ def layers(vgg_layer3_out, vgg_layer4_out, vgg_layer7_out, num_classes):
     conv1x1_vgg_layer4_out = tf.layers.conv2d(vgg_layer4_out, num_classes, 1, padding='same',
                                  kernel_regularizer=regulizer, kernel_initializer=initializer)
 
-    skip_layer4_to_layer7 = it.add(up2x_conv1x1_vgg_layer7_out, conv1x1_vgg_layer4_out)
+    skip_layer4_to_layer7 = tf.add(up2x_conv1x1_vgg_layer7_out, conv1x1_vgg_layer4_out)
 
     up2x_skip_layer4_to_layer7 = tf.layers.conv2d_transpose(skip_layer4_to_layer7, num_classes, 4, 2, padding='same',
                                         kernel_regularizer=regulizer, kernel_initializer=initializer)
@@ -107,7 +107,7 @@ def optimize(nn_last_layer, correct_label, learning_rate, num_classes):
     # train AdamOptimizer with given learning rate base on distance computed in the previous step
     # you can optionally specify learning_rate as parameter to AdamOptimizer, the defautl is 0.001
     train_op = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cross_entropy_loss)
-    return logits, train_op, cross_entropy_lossss
+    return logits, train_op, cross_entropy_loss
 tests.test_optimize(optimize)
 
 
@@ -126,11 +126,16 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_l
     :param keep_prob: TF Placeholder for dropout keep probability
     :param learning_rate: TF Placeholder for learning rate
     """
-    for epoch in epochs:
+    sess.run(tf.global_variables_initializer())
+    for epoch in range(epochs):
         epoch_loss = 0
+        num_iter = 0
         for image, label in get_batches_fn(batch_size):
-            _, c = sess.run([train_op, cross_entropy_loss], feed_dict={x: image, y: label})
+            _, c = sess.run([train_op, cross_entropy_loss], feed_dict={input_image: image, correct_label: label, learning_rate: 0.0001, keep_prob: 0.7})
+                    #, keep_prob: keep_prob, learning_rate: learning_rate})
             epoch_loss += c
+            num_iter += 1
+            print('Epoch ', epoch, 'Iter', num_iter)
         print('Epoch ', epoch, "/", epochs, "loss: ", epoch_loss)
     pass
 tests.test_train_nn(train_nn)
@@ -155,7 +160,7 @@ def run():
     batch_size = 8
 
     with tf.Session() as sess:
-        sess.run(tf.global_variables_initializer())
+        #sess.run(tf.global_variables_initializer())
         # Path to vgg model
         vgg_path = os.path.join(data_dir, 'vgg')
         # Create function to get batches
@@ -166,7 +171,7 @@ def run():
         # Build NN using load_vgg, layers, and optimize function
         input_image, keep_prob, layer3_out, layer4_out, layer7_out = load_vgg(sess, vgg_path)
         nn_last_layer = layers(layer3_out, layer4_out, layer7_out, num_classes)
-        logits, train_op, cross_entropy_loss = optimize(nn_last_layer, correct_label, learning_rate)
+        logits, train_op, cross_entropy_loss = optimize(nn_last_layer, correct_label, learning_rate, num_classes)
         # Train NN using the train_nn function
         train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_loss, input_image, correct_label, keep_prob, learning_rate)
         # Save inference data using helper.save_inference_samples
