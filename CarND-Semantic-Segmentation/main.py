@@ -147,7 +147,7 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_l
                                        learning_rate: 0.0001, keep_prob: 0.7})
             epoch_loss += c
             num_iter += 1
-            print('Epoch ', epoch + 1, 'Iter', num_iter)
+            #print('Epoch ', epoch + 1, 'Iter', num_iter)
         print('Epoch ', epoch + 1, "/", epochs, "loss: ", epoch_loss)
     pass
 tests.test_train_nn(train_nn)
@@ -169,7 +169,7 @@ def run():
     correct_label = tf.placeholder(tf.float32, [None, None, None, num_classes])
     learning_rate = tf.placeholder(tf.float32)
     epochs = 10
-    batch_size = 8
+    batch_size = 4
 
     with tf.Session() as sess:
         # Path to vgg model
